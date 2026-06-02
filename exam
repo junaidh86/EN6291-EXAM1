@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supply Chain Solver — Q1 & Q2</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg0:#0d1220; --bg1:#121c2e; --bg2:#192438; --bg3:#1f2e44;
+  --panel:rgba(13,18,32,0.97);
+  --border:rgba(110,175,255,0.22); --border2:rgba(110,175,255,0.42);
+  --glow:#6ab0ff; --glow2:#00f5b0; --glow3:#ff8550;
+  --text:#f0f6ff; --text2:#a8c4e0; --text3:#6890b0;
+  --mono:'JetBrains Mono',monospace; --display:'Syne',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--display);background:var(--bg0);color:var(--text);overflow:hidden;height:100vh}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(59,139,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(59,139,255,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.blob{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0}
+.blob1{width:500px;height:500px;background:rgba(59,139,255,0.06);top:-100px;left:-100px}
+.blob2{width:400px;height:400px;background:rgba(0,229,160,0.05);bottom:-80px;right:300px}
+.blob3{width:300px;height:300px;background:rgba(255,107,53,0.04);top:40%;right:-50px}
+
+/* ── Layout ── */
+.app{position:relative;z-index:1;display:grid;grid-template-rows:56px 1fr;height:100vh}
+header{display:flex;align-items:center;gap:16px;padding:0 24px;border-bottom:1px solid var(--border2);background:var(--panel);backdrop-filter:blur(12px)}
+.logo-mark{width:32px;height:32px;border:1.5px solid var(--glow);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:500;color:var(--glow);box-shadow:0 0 12px rgba(59,139,255,0.25),inset 0 0 8px rgba(59,139,255,0.08)}
+.app-title{font-size:15px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text)}
+.app-sub{font-family:var(--mono);font-size:12px;color:var(--text3);letter-spacing:0.06em}
+
+/* ── Tabs in header ── */
+.tab-bar{display:flex;align-items:stretch;gap:2px;margin-left:32px;height:100%}
+.tab-btn{font-family:var(--mono);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;padding:0 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);cursor:pointer;transition:color 0.2s,border-color 0.2s;white-space:nowrap}
+.tab-btn:hover{color:var(--text2)}
+.tab-btn.active{color:var(--glow);border-bottom-color:var(--glow)}
+
+.header-sep{flex:1}
+#engine-status{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--text2);padding:5px 12px;border:1px solid var(--border2);border-radius:100px;background:var(--bg2)}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);transition:background 0.4s}
+.status-dot.loading{background:var(--glow3);animation:pulse-dot 1s infinite}
+.status-dot.ready{background:var(--glow2);box-shadow:0 0 6px var(--glow2)}
+.status-dot.err{background:#ff4444}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* ── Tab pages ── */
+.tab-page{display:none;grid-template-columns:360px 1fr;overflow:hidden;height:100%}
+.tab-page.active{display:grid}
+
+/* ── Shared sidebar ── */
+.sidebar{background:var(--panel);backdrop-filter:blur(12px);border-right:1px solid var(--border2);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-scroll{flex:1;overflow-y:auto;padding:20px}
+.sidebar-scroll::-webkit-scrollbar{width:4px}
+.sidebar-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.panel-label{font-family:var(--mono);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text3);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.panel-label::before{content:'';display:inline-block;width:12px;height:1px;background:var(--glow);box-shadow:0 0 4px var(--glow)}
+.s-section{margin-bottom:22px}
+.field{margin-bottom:12px}
+.field label{font-family:var(--mono);font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text2);display:block;margin-bottom:5px}
+.field input[type=text],.field input[type=number],.field textarea{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color 0.2s,box-shadow 0.2s}
+.field input:focus,.field textarea:focus{border-color:var(--glow);box-shadow:0 0 0 2px rgba(59,139,255,0.12)}
+.field textarea{resize:vertical;line-height:1.9}
+.dim-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+
+/* ── Constraint pills ── */
+.constraint-list{display:flex;flex-direction:column;gap:8px}
+.c-item{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;transition:border-color 0.2s}
+.c-item.active{border-color:rgba(59,139,255,0.3)}
+.c-item.locked{opacity:0.6}
+.c-head{display:flex;align-items:center;gap:10px}
+.c-check{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border2);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.2s,border-color 0.2s;position:relative}
+.c-check.checked{background:var(--glow);border-color:var(--glow);box-shadow:0 0 8px rgba(59,139,255,0.4)}
+.c-check.checked::after{content:'';position:absolute;width:4px;height:7px;border-right:1.5px solid #fff;border-bottom:1.5px solid #fff;transform:rotate(45deg) translate(-1px,-1px)}
+.c-check.locked-check{background:rgba(0,229,160,0.15);border-color:rgba(0,229,160,0.4);cursor:default}
+.c-check.locked-check::after{content:'';position:absolute;width:4px;height:7px;border-right:1.5px solid var(--glow2);border-bottom:1.5px solid var(--glow2);transform:rotate(45deg) translate(-1px,-1px)}
+.c-name{font-size:13px;font-weight:500;color:var(--text);flex:1}
+.c-tag{font-family:var(--mono);font-size:11px;color:var(--glow2);background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.2);border-radius:3px;padding:1px 5px}
+.c-body{margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:none}
+.c-body.open{display:flex;align-items:center;gap:8px}
+.c-body input[type=number]{width:72px;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;padding:6px 10px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;-moz-appearance:textfield;appearance:textfield}
+.c-body span{font-family:var(--mono);font-size:12px;color:var(--text2)}
+
+/* ── Solve footer ── */
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border)}
+.solve-btn{width:100%;padding:14px;border:none;border-radius:8px;background:linear-gradient(135deg,#1a4aff 0%,#0a90ff 100%);color:#fff;font-family:var(--display);font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;position:relative;overflow:hidden;transition:opacity 0.2s,transform 0.15s;box-shadow:0 0 24px rgba(26,74,255,0.35),0 2px 8px rgba(0,0,0,0.4)}
+.solve-btn::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent);transition:left 0.5s}
+.solve-btn:hover::before{left:100%}
+.solve-btn:hover{opacity:0.9}
+.solve-btn:active{transform:scale(0.98)}
+.solve-btn:disabled{background:var(--bg3);box-shadow:none;color:var(--text3);cursor:not-allowed}
+.solve-msg-el{font-family:var(--mono);font-size:12px;color:var(--text3);text-align:center;margin-top:8px;min-height:14px}
+.solve-msg-el.err{color:#ff6060}
+.solve-msg-el.ok{color:var(--glow2)}
+
+/* ── Output panel ── */
+.output{display:grid;grid-template-rows:auto 1fr;overflow:hidden;background:var(--bg0)}
+.empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--text2);font-family:var(--mono);font-size:14px;text-align:center}
+.empty-ring{width:80px;height:80px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;position:relative}
+.empty-ring::before{content:'';position:absolute;width:60px;height:60px;border-radius:50%;border:1px dashed var(--border);animation:spin 8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-ring-inner{font-size:28px;opacity:0.4}
+
+/* ── Q1 results ── */
+.results{display:none;grid-template-rows:auto 1fr;overflow:hidden}
+.results.show{display:grid}
+.metrics-bar{display:grid;grid-template-columns:repeat(3,1fr) auto;gap:1px;border-bottom:1px solid var(--border2);background:var(--border)}
+.metric-tile{background:var(--bg1);padding:16px 24px;position:relative;overflow:hidden}
+.metric-tile::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--glow);opacity:0;transition:opacity 0.4s}
+.metric-tile.total::after{background:var(--glow2);opacity:1;box-shadow:0 0 8px var(--glow2)}
+.mt-label{font-family:var(--mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text2);margin-bottom:6px}
+.mt-val{font-family:var(--mono);font-size:26px;font-weight:500;color:var(--text);letter-spacing:-0.02em}
+.mt-val.accent{color:var(--glow2)}
+.metric-tile.solve-again{display:flex;align-items:center;justify-content:center;padding:16px}
+.solve-again-btn{font-family:var(--mono);font-size:12px;color:var(--text2);background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:6px 14px;cursor:pointer;letter-spacing:0.06em;transition:border-color 0.2s,color 0.2s;white-space:nowrap}
+.solve-again-btn:hover{border-color:var(--glow);color:var(--glow)}
+.results-body{display:grid;grid-template-columns:1fr 1fr;overflow:hidden}
+.graph-panel{border-right:1px solid var(--border);padding:20px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.panel-title{font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);display:flex;align-items:center;gap:8px}
+.panel-title::before{content:'';display:inline-block;width:12px;height:1px;background:var(--glow);box-shadow:0 0 4px var(--glow)}
+#network-canvas{flex:1;border-radius:8px;background:var(--bg2);border:1px solid var(--border)}
+.table-panel{padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px}
+.table-panel::-webkit-scrollbar{width:4px}
+.table-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.wh-row{display:flex;gap:8px;flex-wrap:wrap}
+.wh-pill{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);font-family:var(--mono);font-size:13px;transition:border-color 0.3s}
+.wh-pill.open{border-color:rgba(59,139,255,0.35)}
+.wh-pill.closed{opacity:0.5}
+.wh-led{width:7px;height:7px;border-radius:50%;background:var(--text3)}
+.wh-led.on{background:var(--glow2);box-shadow:0 0 6px var(--glow2)}
+.wh-pct{font-size:12px;color:var(--text2)}
+.util-track{width:50px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.util-fill{height:100%;background:var(--glow);border-radius:2px;transition:width 0.8s cubic-bezier(0.34,1.56,0.64,1)}
+.ship-wrap{overflow-x:auto}
+.ship-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
+.ship-table th{background:var(--bg2);border:1px solid var(--border2);padding:8px 12px;text-align:center;font-weight:500;color:var(--text2);font-size:12px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap}
+.ship-table th.lh{text-align:left}
+.ship-table td{border:1px solid var(--border);padding:8px 12px;text-align:center;color:var(--text2);font-size:13px}
+.ship-table td.lh{text-align:left;color:var(--text);background:var(--bg2);white-space:nowrap;font-size:13px}
+.ship-table td.pos{color:var(--text);font-weight:500}
+.ship-table td.zero{color:var(--text3)}
+.ship-table tr.foot td{background:var(--bg2);color:var(--text);border-top:1px solid var(--border2)}
+.sub{display:block;font-size:11px;color:var(--text3);margin-top:2px}
+.cverify-list{display:flex;flex-direction:column;gap:6px}
+.cv-row{display:grid;grid-template-columns:16px 1fr auto;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;transition:border-color 0.3s}
+.cv-row.pass{border-color:rgba(0,229,160,0.25)}
+.cv-row.fail{border-color:rgba(255,107,53,0.35)}
+.cv-row.skip{opacity:0.45}
+.cv-icon{font-size:12px;line-height:1;text-align:center}
+.cv-eq{font-family:var(--mono);font-size:12px;color:var(--text2);line-height:1.6}
+.cv-eq .eq-main{color:var(--text);font-size:13px}
+.cv-eq .eq-val{color:var(--text2);font-size:11px;margin-top:2px}
+.cv-badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:3px;white-space:nowrap;letter-spacing:0.05em}
+.cv-badge.pass{background:rgba(0,229,160,0.1);color:var(--glow2);border:1px solid rgba(0,229,160,0.2)}
+.cv-badge.fail{background:rgba(255,107,53,0.1);color:var(--glow3);border:1px solid rgba(255,107,53,0.2)}
+.cv-badge.skip{background:var(--bg3);color:var(--text3);border:1px solid var(--border)}
+
+/* ── Q2 Forecasting tab ── */
+.q2-output{padding:24px;overflow-y:auto;background:var(--bg0);height:100%}
+.q2-output::-webkit-scrollbar{width:4px}
+.q2-output::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.q2-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.q2-metric{background:var(--bg1);border:1px solid var(--border);border-radius:8px;padding:14px 16px}
+.q2-metric.best{border-color:rgba(0,229,160,0.35)}
+.q2-metric.best::after{content:'BEST';position:absolute;top:10px;right:10px;font-family:var(--mono);font-size:8px;color:var(--glow2);letter-spacing:0.1em}
+.q2-metric{position:relative}
+.q2m-label{font-family:var(--mono);font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px}
+.q2m-val{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--text)}
+.q2m-val.green{color:var(--glow2)}
+.q2m-sub{font-family:var(--mono);font-size:12px;color:var(--text2);margin-top:4px}
+.q2-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.q2-card{background:var(--bg1);border:1px solid var(--border);border-radius:8px;padding:16px}
+.q2-card-title{font-family:var(--mono);font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.q2-card-title::before{content:'';display:inline-block;width:10px;height:1px;background:var(--glow);box-shadow:0 0 4px var(--glow)}
+.q2-full{background:var(--bg1);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px}
+.fc-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10px}
+.fc-table th{background:var(--bg2);border:1px solid var(--border2);padding:7px 10px;text-align:center;color:var(--text2);font-weight:500;font-size:11px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap}
+.fc-table th.lh{text-align:left}
+.fc-table td{border:1px solid var(--border);padding:6px 10px;text-align:center;color:var(--text2);font-size:12px}
+.fc-table td.lh{text-align:left;color:var(--text);background:var(--bg2);font-size:12px}
+.fc-table td.hi{color:var(--text);font-weight:500}
+.fc-table tr.ma-row td{color:var(--glow3)}
+.fc-table tr.ma-row td.lh{color:var(--glow3)}
+.fc-table tr.sum-row td{background:var(--bg2);color:var(--text);border-top:1px solid var(--border2);font-weight:500}
+.fc-table td.best-cell{color:var(--glow2);font-weight:500}
+.q2-canvas-wrap{width:100%;height:180px;position:relative}
+canvas.q2-chart{width:100%;height:100%;border-radius:6px;background:var(--bg2);border:1px solid var(--border)}
+.verdict-box{background:var(--bg2);border:1px solid rgba(0,245,176,0.3);border-radius:8px;padding:16px 20px;font-family:var(--mono);font-size:13px;line-height:1.9;color:var(--text2)}
+.verdict-box strong{color:var(--text);font-weight:500}
+.verdict-box .vline{color:var(--text2);font-size:11px;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em}
+
+@keyframes slide-up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="blob blob1"></div>
+<div class="blob blob2"></div>
+<div class="blob blob3"></div>
+
+<div class="app">
+  <header>
+    <div class="logo-mark">SC</div>
+    <div>
+      <div class="app-title">Supply Chain Solver</div>
+      <div class="app-sub">ENGG·6291 · Exam Solutions</div>
+    </div>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('q1',this)">Q1 — Facility Location</button>
+      <button class="tab-btn" onclick="switchTab('q2',this)">Q2(f) — Forecasting</button>
+    </div>
+    <div class="header-sep"></div>
+    <div id="engine-status">
+      <div class="status-dot loading" id="sdot"></div>
+      <span id="stext">Loading engine…</span>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════════ TAB: Q1 ══ -->
+  <div class="tab-page active" id="tab-q1">
+    <div class="sidebar">
+      <div class="sidebar-scroll">
+        <div class="s-section">
+          <div class="panel-label">Dimensions</div>
+          <div class="dim-row">
+            <div class="field"><label>Warehouses (W)</label><input type="number" id="nW" value="4" min="1" max="10"></div>
+            <div class="field"><label>Customers (C)</label><input type="number" id="nC" value="5" min="1" max="10"></div>
+          </div>
+        </div>
+        <div class="s-section">
+          <div class="panel-label">Parameters</div>
+          <div class="field"><label>Fixed costs — W1, W2, … ($)</label><input type="text" id="fixedCosts" value="850, 700, 950, 600"></div>
+          <div class="field"><label>Capacities — W1, W2, … (units)</label><input type="text" id="capacities" value="120, 100, 140, 90"></div>
+          <div class="field"><label>Demands — C1, C2, … (units)</label><input type="text" id="demands" value="40, 55, 35, 45, 50"></div>
+          <div class="field"><label>Cost matrix (row per warehouse)</label>
+            <textarea id="costMatrix" rows="5">4, 6, 9, 5, 8
+5, 4, 7, 6, 5
+6, 5, 4, 3, 6
+8, 7, 5, 4, 3</textarea>
+          </div>
+        </div>
+        <div class="s-section">
+          <div class="panel-label">Constraints</div>
+          <div class="constraint-list">
+            <div class="c-item locked"><div class="c-head"><div class="c-check locked-check"></div><span class="c-name">Satisfy all demand</span><span class="c-tag">CORE</span></div></div>
+            <div class="c-item locked"><div class="c-head"><div class="c-check locked-check"></div><span class="c-name">Capacity limits</span><span class="c-tag">CORE</span></div></div>
+            <div class="c-item locked"><div class="c-head"><div class="c-check locked-check"></div><span class="c-name">Ship from open warehouses only</span><span class="c-tag">CORE</span></div></div>
+            <div class="c-item active" id="ci_minOpen"><div class="c-head" onclick="toggleConstraint('minOpen')"><div class="c-check checked" id="ck_minOpen"></div><span class="c-name">Min warehouses open</span></div><div class="c-body open" id="cb_minOpen"><span>At least</span><input type="number" id="minOpenVal" value="2" min="1" max="10"><span>warehouse(s)</span></div></div>
+            <div class="c-item active" id="ci_minUtil"><div class="c-head" onclick="toggleConstraint('minUtil')"><div class="c-check checked" id="ck_minUtil"></div><span class="c-name">Min utilization if open</span></div><div class="c-body open" id="cb_minUtil"><span>At least</span><input type="number" id="minUtilVal" value="40" min="0" max="100"><span>% of capacity</span></div></div>
+            <div class="c-item" id="ci_maxOpen"><div class="c-head" onclick="toggleConstraint('maxOpen')"><div class="c-check" id="ck_maxOpen"></div><span class="c-name">Max warehouses open</span></div><div class="c-body" id="cb_maxOpen"><span>At most</span><input type="number" id="maxOpenVal" value="3" min="1" max="10"><span>warehouse(s)</span></div></div>
+            <div class="c-item" id="ci_singleSrc"><div class="c-head" onclick="toggleConstraint('singleSrc')"><div class="c-check" id="ck_singleSrc"></div><span class="c-name">Single-source assignment</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-footer">
+        <button class="solve-btn" id="solve-btn" onclick="runSolver()" disabled>Optimize</button>
+        <div class="solve-msg-el" id="solve-msg">Initializing solver engine…</div>
+      </div>
+    </div>
+
+    <div class="output">
+      <div class="empty" id="empty-state">
+        <div class="empty-ring"><div class="empty-ring-inner">⬡</div></div>
+        <div>Configure parameters &amp; click Optimize</div>
+      </div>
+      <div class="results" id="results">
+        <div class="metrics-bar">
+          <div class="metric-tile"><div class="mt-label">Fixed cost</div><div class="mt-val" id="m-fix">—</div></div>
+          <div class="metric-tile"><div class="mt-label">Transport cost</div><div class="mt-val" id="m-trans">—</div></div>
+          <div class="metric-tile total"><div class="mt-label">Total minimum cost</div><div class="mt-val accent" id="m-total">—</div></div>
+          <div class="metric-tile solve-again"><button class="solve-again-btn" onclick="resetView()">↺ Reset</button></div>
+        </div>
+        <div class="results-body">
+          <div class="graph-panel">
+            <div class="panel-title">Flow network</div>
+            <canvas id="network-canvas"></canvas>
+          </div>
+          <div class="table-panel">
+            <div><div class="panel-title" style="margin-bottom:10px">Warehouse status</div><div class="wh-row" id="wh-row"></div></div>
+            <div><div class="panel-title" style="margin-bottom:10px">Constraints verification</div><div class="cverify-list" id="cverify-list"></div></div>
+            <div><div class="panel-title" style="margin-bottom:10px">Shipment matrix</div><div class="ship-wrap" id="ship-wrap"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ TAB: Q2 ══ -->
+  <div class="tab-page" id="tab-q2">
+    <!-- Q2 sidebar: settings -->
+    <div class="sidebar">
+      <div class="sidebar-scroll">
+        <div class="s-section">
+          <div class="panel-label">Demand data</div>
+          <div class="field"><label>Monthly demand (18 values)</label>
+            <textarea id="q2-demands" rows="6">102,108,115,117,121,119,125,130,128,135,140,138,145,150,148,155,160,165</textarea>
+          </div>
+        </div>
+        <div class="s-section">
+          <div class="panel-label">SES smoothing constants (α)</div>
+          <div class="field"><label>Alpha 1</label><input type="number" id="alpha1" value="0.2" min="0.01" max="0.99" step="0.01"></div>
+          <div class="field"><label>Alpha 2</label><input type="number" id="alpha2" value="0.5" min="0.01" max="0.99" step="0.01"></div>
+          <div class="field"><label>Alpha 3</label><input type="number" id="alpha3" value="0.8" min="0.01" max="0.99" step="0.01"></div>
+        </div>
+        <div class="s-section">
+          <div class="panel-label">Moving average</div>
+          <div class="field"><label>Periods (n)</label><input type="number" id="ma-n" value="3" min="2" max="10"></div>
+          <div class="field"><label>MAPE from period</label><input type="number" id="ma-from" value="4" min="2" max="18"></div>
+        </div>
+      </div>
+      <div class="sidebar-footer">
+        <button class="solve-btn" onclick="runQ2()">Calculate</button>
+        <div class="solve-msg-el" id="q2-msg"></div>
+      </div>
+    </div>
+
+    <!-- Q2 output -->
+    <div class="q2-output" id="q2-output">
+      <div class="empty" style="height:100%">
+        <div class="empty-ring"><div class="empty-ring-inner">〜</div></div>
+        <div>Click Calculate to run forecasting</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .app -->
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════════════════════════
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════════
+// ENGINE
+// ══════════════════════════════════════════════════════════════
+let pyodide = null, pyReady = false;
+function setEngineStatus(text, state) {
+  document.getElementById('stext').textContent = text;
+  document.getElementById('sdot').className = 'status-dot ' + state;
+}
+async function initPy() {
+  try {
+    pyodide = await loadPyodide();
+    await pyodide.loadPackage(['numpy','scipy']);
+    pyReady = true;
+    setEngineStatus('scipy / HiGHS ready','ready');
+    document.getElementById('solve-btn').disabled = false;
+    setSolveMsg('Ready to optimize','ok');
+  } catch(e) {
+    setEngineStatus('Engine error','err');
+    setSolveMsg('Failed: '+e.message,'err');
+  }
+}
+function setSolveMsg(msg,cls=''){const el=document.getElementById('solve-msg');el.textContent=msg;el.className='solve-msg-el '+cls}
+
+// ══════════════════════════════════════════════════════════════
+// Q1 — CONSTRAINT TOGGLE
+// ══════════════════════════════════════════════════════════════
+const cState={minOpen:true,minUtil:true,maxOpen:false,singleSrc:false};
+function toggleConstraint(key){
+  cState[key]=!cState[key];
+  const ck=document.getElementById('ck_'+key),cb=document.getElementById('cb_'+key),ci=document.getElementById('ci_'+key);
+  ck.className='c-check'+(cState[key]?' checked':'');
+  if(cb) cb.className='c-body'+(cState[key]?' open':'');
+  ci.className='c-item'+(cState[key]?' active':'');
+}
+function parseList(s){return s.split(',').map(x=>parseFloat(x.trim())).filter(v=>!isNaN(v))}
+function parseMatrix(s,nW,nC){const rows=s.trim().split('\n').map(r=>r.split(',').map(v=>parseFloat(v.trim())));if(rows.length!==nW||rows.some(r=>r.length!==nC||r.some(isNaN)))return null;return rows}
+
+// ══════════════════════════════════════════════════════════════
+// Q1 — SOLVER
+// ══════════════════════════════════════════════════════════════
+async function runSolver(){
+  if(!pyReady)return;
+  const nW=parseInt(document.getElementById('nW').value);
+  const nC=parseInt(document.getElementById('nC').value);
+  const fixedCosts=parseList(document.getElementById('fixedCosts').value);
+  const capacities=parseList(document.getElementById('capacities').value);
+  const demands=parseList(document.getElementById('demands').value);
+  const matrix=parseMatrix(document.getElementById('costMatrix').value,nW,nC);
+  if(fixedCosts.length!==nW){setSolveMsg(`Fixed costs: need ${nW}, got ${fixedCosts.length}`,'err');return}
+  if(capacities.length!==nW){setSolveMsg(`Capacities: need ${nW}, got ${capacities.length}`,'err');return}
+  if(demands.length!==nC){setSolveMsg(`Demands: need ${nC}, got ${demands.length}`,'err');return}
+  if(!matrix){setSolveMsg(`Matrix must be ${nW}×${nC}`,'err');return}
+  const minOpen=cState.minOpen?parseInt(document.getElementById('minOpenVal').value):0;
+  const maxOpen=cState.maxOpen?parseInt(document.getElementById('maxOpenVal').value):nW;
+  const minUtilPct=cState.minUtil?parseFloat(document.getElementById('minUtilVal').value):0;
+  const singleSrc=cState.singleSrc;
+  document.getElementById('solve-btn').disabled=true;
+  setSolveMsg('Solving…');
+  pyodide.globals.set('nW',nW);pyodide.globals.set('nC',nC);
+  pyodide.globals.set('fixed',fixedCosts);pyodide.globals.set('cap',capacities);
+  pyodide.globals.set('dem',demands);pyodide.globals.set('cost_js',matrix.flat());
+  pyodide.globals.set('min_open',minOpen);pyodide.globals.set('max_open',maxOpen);
+  pyodide.globals.set('min_util',minUtilPct/100);pyodide.globals.set('single_source',singleSrc);
+  const code=`
+import numpy as np,json
+from scipy.optimize import milp,LinearConstraint,Bounds
+cost=np.array(cost_js).reshape(nW,nC).tolist()
+def yi(w):return w
+def qi(w,c):return nW+w*nC+c
+nVars=nW+nW*nC
+c_obj=np.zeros(nVars)
+for w in range(nW):
+  c_obj[yi(w)]=fixed[w]
+  [c_obj.__setitem__(qi(w,c),cost[w][c]) for c in range(nC)]
+integrality=np.zeros(nVars)
+for w in range(nW):integrality[yi(w)]=1
+lb=np.zeros(nVars);ub=np.full(nVars,np.inf)
+for w in range(nW):ub[yi(w)]=1.0
+rows,lo_b,hi_b=[],[],[]
+def add(r,lo,hi):rows.append(r);lo_b.append(lo);hi_b.append(hi)
+for c in range(nC):
+  r=np.zeros(nVars)
+  for w in range(nW):r[qi(w,c)]=1.0
+  add(r,dem[c],np.inf)
+for w in range(nW):
+  r=np.zeros(nVars)
+  for c in range(nC):r[qi(w,c)]=1.0
+  r[yi(w)]=-cap[w];add(r,-np.inf,0.0)
+if min_util>0:
+  for w in range(nW):
+    r=np.zeros(nVars)
+    for c in range(nC):r[qi(w,c)]=1.0
+    r[yi(w)]=-min_util*cap[w];add(r,0.0,np.inf)
+BIG_M=float(max(max(cap),sum(dem))+1)
+for w in range(nW):
+  for c in range(nC):
+    r=np.zeros(nVars);r[qi(w,c)]=1.0;r[yi(w)]=-BIG_M;add(r,-np.inf,0.0)
+r=np.zeros(nVars)
+for w in range(nW):r[yi(w)]=1.0
+add(r,float(min_open),float(max_open))
+if single_source:
+  for c in range(nC):
+    r=np.zeros(nVars)
+    for w in range(nW):r[qi(w,c)]=1.0
+    add(r,dem[c],dem[c])
+  for w in range(nW):
+    for c in range(nC):ub[qi(w,c)]=dem[c]
+lc=LinearConstraint(np.array(rows),lo_b,hi_b)
+bd=Bounds(lb,ub)
+res=milp(c_obj,constraints=lc,integrality=integrality,bounds=bd,options={"disp":False})
+if res.status==0:
+  x=res.x
+  ow=[int(round(x[yi(w)])) for w in range(nW)]
+  shp=[[round(max(x[qi(w,c)],0),2) for c in range(nC)] for w in range(nW)]
+  fc=sum(fixed[w]*ow[w] for w in range(nW))
+  tc=round(sum(cost[w][c]*shp[w][c] for w in range(nW) for c in range(nC)),2)
+  out={"status":"Optimal","open":ow,"ships":shp,"fix":fc,"trans":tc,"total":round(fc+tc,2)}
+else:
+  msgs={1:"Iteration limit",2:"Infeasible — relax constraints",3:"Unbounded"}
+  out={"status":msgs.get(res.status,f"Error {res.status}")}
+json.dumps(out)`;
+  try{
+    const raw=await pyodide.runPythonAsync(code);
+    const res=JSON.parse(raw);
+    if(res.status!=='Optimal'){setSolveMsg(res.status,'err');document.getElementById('solve-btn').disabled=false;return}
+    setSolveMsg(`Optimal · $${res.total.toLocaleString()}`,'ok');
+    renderResults(res,nW,nC,fixedCosts,capacities,demands,matrix);
+  }catch(e){setSolveMsg(e.message.slice(0,80),'err')}
+  document.getElementById('solve-btn').disabled=false;
+}
+
+function resetView(){document.getElementById('results').classList.remove('show');document.getElementById('empty-state').style.display='flex'}
+
+// ══════════════════════════════════════════════════════════════
+// Q1 — RENDER
+// ══════════════════════════════════════════════════════════════
+function renderResults(res,nW,nC,fixedCosts,capacities,demands,matrix){
+  document.getElementById('empty-state').style.display='none';
+  document.getElementById('results').classList.add('show');
+  animateCount('m-fix',res.fix,'$');animateCount('m-trans',res.trans,'$');animateCount('m-total',res.total,'$');
+  let whHtml='';
+  for(let w=0;w<nW;w++){
+    const isOpen=res.open[w]===1,shipped=res.ships[w].reduce((a,b)=>a+b,0),util=isOpen?Math.round(shipped/capacities[w]*100):0;
+    whHtml+=`<div class="wh-pill ${isOpen?'open':'closed'}"><div class="wh-led ${isOpen?'on':''}"></div><span>WH${w+1}</span>${isOpen?`<div class="util-track"><div class="util-fill" style="width:${util}%"></div></div><span class="wh-pct">${util}%</span>`:'<span class="wh-pct">closed</span>'}</div>`;
+  }
+  document.getElementById('wh-row').innerHTML=whHtml;
+  const openIdx=res.open.map((o,i)=>o===1?i:-1).filter(i=>i>=0);
+  let tbl='<table class="ship-table"><thead><tr><th class="lh">Warehouse</th>';
+  for(let c=0;c<nC;c++) tbl+=`<th>C${c+1}<br><span style="color:var(--text3)">${demands[c]}u</span></th>`;
+  tbl+='<th>Sent</th><th>Fixed</th></tr></thead><tbody>';
+  for(const w of openIdx){
+    const rt=res.ships[w].reduce((a,b)=>a+b,0);
+    tbl+=`<tr><td class="lh">WH${w+1}</td>`;
+    for(let c=0;c<nC;c++){const v=res.ships[w][c];tbl+=v>0?`<td class="pos">${v}<span class="sub">$${(matrix[w][c]*v).toFixed(0)}</span></td>`:`<td class="zero">—</td>`}
+    tbl+=`<td class="pos">${rt.toFixed(1)}</td><td class="pos">$${fixedCosts[w]}</td></tr>`;
+  }
+  tbl+='<tr class="foot"><td>Received</td>';
+  for(let c=0;c<nC;c++) tbl+=`<td>${res.ships.reduce((s,r)=>s+r[c],0).toFixed(1)}</td>`;
+  tbl+='<td colspan="2"></td></tr></tbody></table>';
+  document.getElementById('ship-wrap').innerHTML=tbl;
+  renderConstraints(res,nW,nC,fixedCosts,capacities,demands,matrix);
+  setTimeout(()=>drawNetwork(res,nW,nC,demands,matrix),50);
+}
+function animateCount(id,target,prefix=''){
+  const el=document.getElementById(id),dur=600,steps=40;let i=0;
+  const iv=setInterval(()=>{i++;el.textContent=prefix+Math.round(target*(i/steps)).toLocaleString();if(i>=steps)clearInterval(iv)},dur/steps);
+}
+function renderConstraints(res,nW,nC,fixedCosts,capacities,demands,matrix){
+  const openWH=res.open.map((o,i)=>o===1?i:-1).filter(i=>i>=0);
+  const minOpen=cState.minOpen?parseInt(document.getElementById('minOpenVal').value):null;
+  const maxOpen=cState.maxOpen?parseInt(document.getElementById('maxOpenVal').value):null;
+  const minUtil=cState.minUtil?parseFloat(document.getElementById('minUtilVal').value)/100:null;
+  const nOpen=openWH.length;const items=[];
+  let allDemandMet=true;
+  const demD=demands.map((d,c)=>{const rv=res.ships.reduce((s,r)=>s+r[c],0);if(rv<d-0.01)allDemandMet=false;return`C${c+1}:${rv.toFixed(1)}≥${d}`});
+  items.push({pass:allDemandMet,active:true,eq:'∑<sub>w</sub> q<sub>wc</sub> ≥ d<sub>c</sub>  ∀c',detail:demD.join(' · ')});
+  let allCapOk=true;
+  const capD=openWH.map(w=>{const s=res.ships[w].reduce((a,b)=>a+b,0);if(s>capacities[w]+0.01)allCapOk=false;return`WH${w+1}:${s.toFixed(1)}≤${capacities[w]}`});
+  items.push({pass:allCapOk,active:true,eq:'∑<sub>c</sub> q<sub>wc</sub> ≤ CAP<sub>w</sub>·y<sub>w</sub>  ∀w',detail:capD.join(' · ')});
+  let linkOk=true;
+  for(let w=0;w<nW;w++)if(!res.open[w]&&res.ships[w].some(v=>v>0.01)){linkOk=false;break}
+  items.push({pass:linkOk,active:true,eq:'q<sub>wc</sub> ≤ M·y<sub>w</sub>  ∀w,c',detail:linkOk?'All flows from open warehouses':'Flow from closed warehouse'});
+  if(minOpen!==null){const ok=nOpen>=minOpen;items.push({pass:ok,active:true,eq:`∑<sub>w</sub> y<sub>w</sub> ≥ ${minOpen}`,detail:`${nOpen} open ≥ ${minOpen}`})}
+  else items.push({pass:false,active:false,eq:'∑<sub>w</sub> y<sub>w</sub> ≥ K',detail:'Disabled'});
+  if(minUtil!==null){
+    let ok=true;
+    const ud=openWH.map(w=>{const s=res.ships[w].reduce((a,b)=>a+b,0),mn=minUtil*capacities[w];if(s<mn-0.01)ok=false;return`WH${w+1}:${s.toFixed(1)}≥${mn.toFixed(1)}`});
+    items.push({pass:ok,active:true,eq:`∑<sub>c</sub> q<sub>wc</sub> ≥ ${Math.round(minUtil*100)}%·CAP<sub>w</sub>·y<sub>w</sub>  ∀w`,detail:ud.join(' · ')});
+  } else items.push({pass:false,active:false,eq:'∑<sub>c</sub> q<sub>wc</sub> ≥ α·CAP<sub>w</sub>·y<sub>w</sub>  ∀w',detail:'Disabled'});
+  if(maxOpen!==null){const ok=nOpen<=maxOpen;items.push({pass:ok,active:true,eq:`∑<sub>w</sub> y<sub>w</sub> ≤ ${maxOpen}`,detail:`${nOpen} open ≤ ${maxOpen}`})}
+  else items.push({pass:false,active:false,eq:'∑<sub>w</sub> y<sub>w</sub> ≤ K',detail:'Disabled'});
+  if(cState.singleSrc){
+    let ok=true;const sd=demands.map((d,c)=>{const src=res.ships.filter(r=>r[c]>0.01).length;if(src>1)ok=false;return`C${c+1}:${src}src`});
+    items.push({pass:ok,active:true,eq:'∑<sub>w</sub> x<sub>wc</sub> = 1  ∀c',detail:sd.join(' · ')});
+  } else items.push({pass:false,active:false,eq:'∑<sub>w</sub> x<sub>wc</sub> = 1  ∀c',detail:'Disabled'});
+  document.getElementById('cverify-list').innerHTML=items.map(it=>{
+    const cls=!it.active?'skip':it.pass?'pass':'fail',icon=!it.active?'○':it.pass?'✓':'✗',bc=cls,bt=!it.active?'OFF':it.pass?'SATISFIED':'VIOLATED';
+    return`<div class="cv-row ${cls}"><div class="cv-icon" style="color:${!it.active?'var(--text3)':it.pass?'var(--glow2)':'var(--glow3)'}">${icon}</div><div class="cv-eq"><div class="eq-main">${it.eq}</div><div class="eq-val">${it.detail}</div></div><div class="cv-badge ${bc}">${bt}</div></div>`;
+  }).join('');
+}
+function drawNetwork(res,nW,nC,demands,matrix){
+  const canvas=document.getElementById('network-canvas'),parent=canvas.parentElement;
+  canvas.width=parent.clientWidth-40;canvas.height=parent.clientHeight-52;
+  const W=canvas.width,H=canvas.height,ctx=canvas.getContext('2d');
+  const GLOW='#3b8bff',GLOW2='#00e5a0',TEXT2='#6b8aaa';
+  ctx.clearRect(0,0,W,H);
+  const openIdx=res.open.map((o,i)=>o===1?i:-1).filter(i=>i>=0);
+  const closedIdx=res.open.map((o,i)=>o===0?i:-1).filter(i=>i>=0);
+  const pad=40,whY=i=>pad+i*((H-pad*2)/Math.max(nW-1,1)),cY=i=>pad+i*((H-pad*2)/Math.max(nC-1,1)),whX=W*0.25,cX=W*0.75;
+  const maxFlow=Math.max(...res.ships.flat().filter(v=>v>0),1);
+  for(let w=0;w<nW;w++){if(!res.open[w])continue;for(let c=0;c<nC;c++){const v=res.ships[w][c];if(v<=0)continue;const t=v/maxFlow,alpha=0.2+t*0.6;ctx.beginPath();ctx.moveTo(whX,whY(w));ctx.bezierCurveTo(W*0.5,whY(w),W*0.5,cY(c),cX,cY(c));ctx.strokeStyle=`rgba(59,139,255,${alpha})`;ctx.lineWidth=0.5+t*3;ctx.stroke();ctx.fillStyle=`rgba(59,139,255,${alpha+0.2})`;ctx.font=`400 9px 'JetBrains Mono',monospace`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(v.toFixed(0),W*0.5,(whY(w)+cY(c))/2-4)}}
+  for(const w of closedIdx){ctx.beginPath();ctx.arc(whX,whY(w),10,0,Math.PI*2);ctx.fillStyle='#17202c';ctx.fill();ctx.strokeStyle='#2a2f42';ctx.lineWidth=1;ctx.stroke();ctx.fillStyle='#3a5070';ctx.font=`500 9px 'JetBrains Mono',monospace`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(`W${w+1}`,whX,whY(w))}
+  for(const w of openIdx){const x=whX,y=whY(w);const g=ctx.createRadialGradient(x,y,0,x,y,20);g.addColorStop(0,'rgba(59,139,255,0.25)');g.addColorStop(1,'rgba(59,139,255,0)');ctx.beginPath();ctx.arc(x,y,20,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);ctx.fillStyle='#0c1118';ctx.fill();ctx.strokeStyle=GLOW;ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle=GLOW;ctx.font=`500 9px 'JetBrains Mono',monospace`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(`W${w+1}`,x,y);ctx.fillStyle=TEXT2;ctx.font=`400 9px 'JetBrains Mono',monospace`;ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText(`${Math.round(res.ships[w].reduce((a,b)=>a+b,0))}u`,x-18,y)}
+  for(let c=0;c<nC;c++){const x=cX,y=cY(c),recv=res.ships.reduce((s,r)=>s+r[c],0),met=Math.abs(recv-demands[c])<0.01;const g=ctx.createRadialGradient(x,y,0,x,y,20);g.addColorStop(0,met?'rgba(0,229,160,0.18)':'rgba(255,107,53,0.18)');g.addColorStop(1,'rgba(0,0,0,0)');ctx.beginPath();ctx.arc(x,y,20,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);ctx.fillStyle='#0c1118';ctx.fill();ctx.strokeStyle=met?GLOW2:'#ff6b35';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle=met?GLOW2:'#ff6b35';ctx.font=`500 9px 'JetBrains Mono',monospace`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(`C${c+1}`,x,y);ctx.fillStyle=TEXT2;ctx.font=`400 9px 'JetBrains Mono',monospace`;ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(`${demands[c]}u`,x+18,y)}
+  ctx.font=`400 9px 'JetBrains Mono',monospace`;ctx.textAlign='left';ctx.textBaseline='middle';
+  const leg=[[GLOW,'Open WH'],['#2a2f42','Closed WH'],[GLOW2,'Demand met']];let lx=10,ly=H-14;
+  for(const[col,lbl]of leg){ctx.beginPath();ctx.arc(lx+4,ly,4,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();ctx.fillStyle=TEXT2;ctx.fillText(lbl,lx+12,ly);lx+=ctx.measureText(lbl).width+28}
+}
+
+// ══════════════════════════════════════════════════════════════
+// Q2(f) — FORECASTING (pure JS, no Python needed)
+// ══════════════════════════════════════════════════════════════
+function runQ2(){
+  const raw=document.getElementById('q2-demands').value;
+  const demand=raw.split(/[\n,]+/).map(s=>parseFloat(s.trim())).filter(v=>!isNaN(v));
+  const n=demand.length;
+  if(n<4){document.getElementById('q2-msg').textContent='Need at least 4 data points';document.getElementById('q2-msg').className='solve-msg-el err';return}
+  const alphas=[
+    parseFloat(document.getElementById('alpha1').value),
+    parseFloat(document.getElementById('alpha2').value),
+    parseFloat(document.getElementById('alpha3').value)
+  ];
+  const maN=parseInt(document.getElementById('ma-n').value);
+  const maFrom=parseInt(document.getElementById('ma-from').value);
+
+  // SES: F[1]=D[0], F[t]=alpha*D[t-1]+(1-alpha)*F[t-1]
+  function computeSES(alpha){
+    const F=[demand[0]];
+    for(let t=1;t<n;t++) F.push(alpha*demand[t-1]+(1-alpha)*F[t-1]);
+    // forecast for month n+1
+    const Fnext=alpha*demand[n-1]+(1-alpha)*F[n-1];
+    return{F,Fnext};
+  }
+  // MAPE over all periods starting from index 1 (month 2)
+  function mape(actual,forecast,fromIdx=1){
+    let s=0,cnt=0;
+    for(let t=fromIdx;t<actual.length;t++){s+=Math.abs((actual[t]-forecast[t])/actual[t]);cnt++}
+    return(s/cnt)*100;
+  }
+
+  const ses=alphas.map(a=>computeSES(a));
+  const sesMAPE=ses.map(s=>mape(demand,s.F));
+
+  // Moving Average: MA[t] = mean(D[t-n]..D[t-1]), valid from t=maN (0-indexed)
+  // MAPE from period maFrom (1-indexed) → index maFrom-1
+  const maF=new Array(n).fill(null);
+  for(let t=maN;t<n;t++){
+    let sum=0;for(let k=t-maN;k<t;k++)sum+=demand[k];
+    maF[t]=sum/maN;
+  }
+  let maMAPEsum=0,maMAPEcnt=0;
+  const maFromIdx=maFrom-1;
+  for(let t=maFromIdx;t<n;t++){if(maF[t]!==null){maMAPEsum+=Math.abs((demand[t]-maF[t])/demand[t]);maMAPEcnt++}}
+  const maMapePct=maMAPEcnt>0?(maMAPEsum/maMAPEcnt)*100:null;
+  const maNxt=demand.slice(n-maN).reduce((a,b)=>a+b,0)/maN;
+
+  // Best SES
+  const bestIdx=sesMAPE.indexOf(Math.min(...sesMAPE));
+  const bestAlpha=alphas[bestIdx];
+
+  document.getElementById('q2-msg').textContent=`Done · Best α=${bestAlpha} (MAPE ${sesMAPE[bestIdx].toFixed(2)}%)`;
+  document.getElementById('q2-msg').className='solve-msg-el ok';
+
+  renderQ2(demand,n,alphas,ses,sesMAPE,maF,maMapePct,maNxt,maN,maFrom,bestIdx);
+}
+
+function renderQ2(demand,n,alphas,ses,sesMAPE,maF,maMapePct,maNxt,maN,maFrom,bestIdx){
+  const out=document.getElementById('q2-output');
+  const maLabel=`${maN}-Period MA`;
+
+  // MAPE comparison cards
+  let metricsHtml='<div class="q2-metrics">';
+  alphas.forEach((a,i)=>{
+    const best=i===bestIdx;
+    metricsHtml+=`<div class="q2-metric${best?' best':''}">
+      <div class="q2m-label">SES α = ${a}</div>
+      <div class="q2m-val${best?' green':''}">MAPE ${sesMAPE[i].toFixed(2)}%</div>
+      <div class="q2m-sub">Month ${n+1} forecast: <strong>${ses[i].Fnext.toFixed(2)}</strong></div>
+    </div>`;
+  });
+  metricsHtml+=`<div class="q2-metric">
+    <div class="q2m-label">${maLabel} (periods ${maFrom}–${n})</div>
+    <div class="q2m-val">MAPE ${maMapePct!==null?maMapePct.toFixed(2)+'%':'—'}</div>
+    <div class="q2m-sub">Month ${n+1} forecast: <strong>${maNxt.toFixed(2)}</strong></div>
+  </div>`;
+  metricsHtml+='</div>';
+
+  // Full forecast table
+  let tblHtml=`<div class="q2-full"><div class="q2-card-title">Forecast table — all months</div>
+  <div style="overflow-x:auto"><table class="fc-table">
+  <thead><tr>
+    <th class="lh">Month</th><th>Actual D</th>
+    ${alphas.map(a=>`<th>SES α=${a}</th>`).join('')}
+    <th>${maLabel}</th>
+  </tr></thead><tbody>`;
+  for(let t=0;t<n;t++){
+    const isMA=maF[t]!==null;
+    tblHtml+=`<tr>
+      <td class="lh">${t+1}</td>
+      <td class="hi">${demand[t]}</td>
+      ${ses.map((s,i)=>{const v=s.F[t],ape=t>0?Math.abs((demand[t]-v)/demand[t])*100:null;return`<td class="${i===bestIdx&&t>0?'best-cell':''}">${v.toFixed(2)}${t>0?`<span class="sub">${ape.toFixed(1)}%</span>`:''}</td>`}).join('')}
+      <td class="${isMA&&t>=maFrom-1?'hi zero':''}">${isMA?maF[t].toFixed(2):'—'}${isMA&&t>=maFrom-1?`<span class="sub">${(Math.abs((demand[t]-maF[t])/demand[t])*100).toFixed(1)}%</span>`:''}</td>
+    </tr>`;
+  }
+  // Month n+1 row
+  tblHtml+=`<tr style="border-top:1px solid var(--border2)">
+    <td class="lh">${n+1} (fcst)</td><td class="hi">—</td>
+    ${ses.map((s,i)=>`<td class="${i===bestIdx?'best-cell':''}">${s.Fnext.toFixed(2)}</td>`).join('')}
+    <td class="hi">${maNxt.toFixed(2)}</td>
+  </tr>`;
+  // MAPE row
+  tblHtml+=`<tr class="sum-row">
+    <td class="lh">MAPE</td><td>—</td>
+    ${sesMAPE.map((m,i)=>`<td class="${i===bestIdx?'best-cell':''}">${m.toFixed(2)}%</td>`).join('')}
+    <td>${maMapePct!==null?maMapePct.toFixed(2)+'%':'—'}</td>
+  </tr>`;
+  tblHtml+='</tbody></table></div></div>';
+
+  // Verdict
+  const bestSES=`SES with α = ${alphas[bestIdx]}`;
+  const maVsSesBetter=maMapePct!==null&&maMapePct<sesMAPE[bestIdx];
+  const overallBest=maVsSesBetter?`${maN}-Period MA (MAPE ${maMapePct.toFixed(2)}%)`:` ${bestSES} (MAPE ${sesMAPE[bestIdx].toFixed(2)}%)`;
+  const verdictHtml=`<div class="verdict-box">
+    <div class="vline">Model comparison — Q2(f) verdict</div>
+    <strong>Equation used (SES):</strong> F<sub>t+1</sub> = α · D<sub>t</sub> + (1 − α) · F<sub>t</sub><br>
+    <strong>Moving Average equation:</strong> MA<sub>t</sub> = (D<sub>t−1</sub> + D<sub>t−2</sub> + … + D<sub>t−n</sub>) / n<br>
+    <strong>Best SES model:</strong> α = ${alphas[bestIdx]} — MAPE ${sesMAPE[bestIdx].toFixed(2)}%. ${alphas[bestIdx]>=0.7?'High α → responsive, tracks trend quickly but volatile.':alphas[bestIdx]<=0.3?'Low α → stable, smooth but slow to react to changes.':'Moderate α → balanced responsiveness and stability.'}<br>
+    <strong>${maN}-Period MA MAPE (periods ${maFrom}–${n}):</strong> ${maMapePct!==null?maMapePct.toFixed(2)+'%':'N/A'}<br>
+    <strong>Overall best model:</strong>${overallBest}<br>
+    ${maVsSesBetter
+      ?`Moving Average outperforms SES here, suggesting the demand series is relatively stable with low noise, making the simple average effective.`
+      :`SES outperforms MA — its weighted recency bias handles the upward trend better than a simple average of past periods.`}
+  </div>`;
+
+  // Mini chart
+  const chartHtml=`<div class="q2-full"><div class="q2-card-title">Demand vs forecasts</div><div class="q2-canvas-wrap"><canvas id="q2-chart"></canvas></div></div>`;
+
+  out.innerHTML=metricsHtml+chartHtml+tblHtml+verdictHtml;
+
+  // Draw chart
+  setTimeout(()=>{
+    const canvas=document.getElementById('q2-chart');
+    if(!canvas)return;
+    const par=canvas.parentElement;
+    canvas.width=par.clientWidth;canvas.height=par.clientHeight;
+    const W=canvas.width,H=canvas.height,ctx=canvas.getContext('2d');
+    const pad={t:12,r:16,b:28,l:40};
+    const cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
+    const allVals=[...demand,...ses.flatMap(s=>s.F),...maF.filter(v=>v!==null)];
+    const minV=Math.min(...allVals)*0.97,maxV=Math.max(...allVals)*1.01;
+    const px=t=>pad.l+t*(cW/(n-1)),py=v=>pad.t+cH-(v-minV)/(maxV-minV)*cH;
+    ctx.clearRect(0,0,W,H);
+    // Grid
+    ctx.strokeStyle='rgba(80,160,255,0.08)';ctx.lineWidth=1;
+    for(let i=0;i<=4;i++){const y=pad.t+cH*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke()}
+    // Actual demand
+    ctx.beginPath();ctx.moveTo(px(0),py(demand[0]));
+    for(let t=1;t<n;t++)ctx.lineTo(px(t),py(demand[t]));
+    ctx.strokeStyle='#d8e8f8';ctx.lineWidth=1.5;ctx.stroke();
+    // SES lines
+    const cols=['#3b8bff','#ff6b35','#b44fff'];
+    ses.forEach((s,i)=>{
+      ctx.beginPath();ctx.moveTo(px(0),py(s.F[0]));
+      for(let t=1;t<n;t++)ctx.lineTo(px(t),py(s.F[t]));
+      ctx.strokeStyle=cols[i];ctx.lineWidth=1;ctx.setLineDash([]);ctx.stroke();
+    });
+    // MA line
+    ctx.setLineDash([4,3]);ctx.strokeStyle='#00e5a0';ctx.lineWidth=1.5;ctx.beginPath();
+    let started=false;
+    for(let t=0;t<n;t++){if(maF[t]===null)continue;if(!started){ctx.moveTo(px(t),py(maF[t]));started=true}else ctx.lineTo(px(t),py(maF[t]))}
+    ctx.stroke();ctx.setLineDash([]);
+    // X labels
+    ctx.fillStyle='#3a5070';ctx.font=`9px 'JetBrains Mono',monospace`;ctx.textAlign='center';ctx.textBaseline='top';
+    for(let t=0;t<n;t+=3)ctx.fillText(t+1,px(t),H-pad.b+4);
+    // Legend
+    const legItems=[['#d8e8f8','Actual'],...alphas.map((a,i)=>[cols[i],`α=${a}`]),['#00e5a0',`${maN}-MA`]];
+    let lx=pad.l;const ly=4;
+    ctx.font=`9px 'JetBrains Mono',monospace`;ctx.textBaseline='top';
+    for(const[col,lbl]of legItems){ctx.fillStyle=col;ctx.fillRect(lx,ly,12,2);ctx.fillStyle='#6b8aaa';ctx.textAlign='left';ctx.fillText(lbl,lx+16,ly-1);lx+=ctx.measureText(lbl).width+32}
+  },60);
+}
+
+initPy();
+</script>
+</body>
+</html>
